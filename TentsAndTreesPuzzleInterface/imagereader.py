@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-from TreesAndTentsPuzzleInterface.imagefetcher import FetchPuzzle
+from TentsAndTreesPuzzleInterface.imagefetcher import FetchPuzzle
 
 BACKGROUNDGREY = [230, 230, 230]
 GRASSGREEN = [128, 255, 179]

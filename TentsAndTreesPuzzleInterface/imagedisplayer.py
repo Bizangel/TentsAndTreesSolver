@@ -2,7 +2,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 from cv2 import line
 import numpy as np
-from TreesAndTentsPuzzleInterface.imagereader import ParseImage
+from TentsAndTreesPuzzleInterface.imagereader import ParseImage
 from pathlib import Path
 
 
@@ -23,7 +23,7 @@ def generateImageGrid(indexmatrix, indeximages, gridlength, backgroundcol='white
     width = gridlength*m + (m+1)
     height = gridlength*n + (n+1)
     # img_w, img_h = indeximages.size
-    background = Image.new('RGBA', (width, height), (230, 230, 230, 255))
+    background = Image.new('RGBA', (width, height), backgroundcol)
     img1 = ImageDraw.Draw(background)
 
     for i in range(m + 1):
@@ -72,8 +72,16 @@ def addRowColNumbers(img, row, col):
 def DisplayPuzzle(matrix, row, col):
 
     empty = Image.new('RGBA', (1, 1), (255, 255, 255, 0))
-    tree = Image.open(str(Path(__file__).resolve().parent / "tree.png"))
-    tent = Image.open(str(Path(__file__).resolve().parent / "tent.png"))
+
+    emptygreen = Image.new('RGBA', (1, 1), (53, 159, 1, 170))
+    treepng = Image.open(str(Path(__file__).resolve().parent / "tree.png"))
+    tree = emptygreen.copy().resize(treepng.size)
+    tree.paste(treepng, (0, 0), treepng)
+
+    tentpng = Image.open(str(Path(__file__).resolve().parent / "tent.png"))
+    tent = emptygreen.copy().resize(tentpng.size)
+    tent.paste(tentpng, (0, 0), tentpng)
+
     table = generateImageGrid(matrix, [
-        empty, tree, tent], 60)
+        empty, tree, tent, emptygreen], 60)
     return addRowColNumbers(table, row, col)

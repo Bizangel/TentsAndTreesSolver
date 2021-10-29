@@ -9,11 +9,11 @@ GAME RULE IS TO PLACE TENTS IN THE BOARD.
 3. NO TWO TENTS ARE ADJACENT. HORIZONTALLY, VERTICALLY NOR DIAGONALLY.
 4. THE NUMBER OF TENTS IN EACH ROW, AND IN EACH COLUMN MUST MATCH THE NUMBERS GIVEN BY NEXT TO THE GRID.
 
-## Some Implicit Basic rules
+# Some Implicit Basic rules
 1. Tents can only be placed in empty spaces.
 2. Clearly, our agent/player, can not change the position of trees nor the shape of the board.
 
-TO NOTE: 
+TO NOTE:
 We are marking empty assure spaces (squares where our agent, via rules and propositional logic has determined that such a square MUST be empty)
 as GREEN or GREEN EMPTY squares.
 These squares are not neccesary for the completion of the game and most variants of the game DO not include this feature.
@@ -47,7 +47,7 @@ class TentsAndTrees:
 
     def transition(self, accion):
         ''' Performs the given action
-        Action is a 3-tuple 
+        Action is a 3-tuple
         (x,y,val)
         Places respective value in respective x,y position.
         '''
@@ -63,8 +63,50 @@ class TentsAndTrees:
                 "Can't play on square {0},{1}. Such a square is not empty (already filled with: {2})".format(x, y,
                                                                                                              TentsAndTrees.DisplayCodes[self.state[x, y]]))
 
-    def checkDone(self, accion):
+    def checkDone(self):
         ''' Determines if the puzzle is done'''
+        for row in self.m:
+            pass # TODO
+
+    def adjacentTiles(self, tile, includeDiagonals=False):
+        ''' Returns adjacent tiles of given (x,y) tile'''
+        adjacents = []
+        x, y = tile
+        # right
+        if ((x + 1 < self.m)):
+            adjacents.append((x+1, y))
+        # left
+        if ((x - 1 >= 0)):
+            adjacents.append((x-1, y))
+        # up
+        if ((y + 1 < self.n)):
+            adjacents.append((x, y + 1))
+        # down
+        if ((y - 1 >= 0)):
+            adjacents.append((x, y - 1))
+
+        if includeDiagonals:
+            adjacents.extend(self.adjacentDiagonalTiles(x, y))
+        return adjacents
+
+    def adjacentDiagonalTiles(self, tile):
+        ''' Returns adjacent diagonal tiles of given (x,y) tile'''
+        diagonals = []
+        x, y = tile
+        # up right
+        if ((x + 1 < self.m) and (y - 1 >= 0)):
+            diagonals.append((x+1, y-1))
+        # up left
+        if ((x - 1 >= 0) and (y - 1 >= 0)):
+            diagonals.append((x-1, y-1))
+        # down right
+        if ((x + 1 < self.m) and (y + 1 < self.n)):
+            diagonals.append((x+1, y+1))
+        # down left
+        if ((x - 1 >= 0) and (y + 1 < self.n)):
+            diagonals.append((x-1, y+1))
+
+        return diagonals
 
 
 # Our agent

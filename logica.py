@@ -2,12 +2,12 @@ import numpy as np
 from copy import deepcopy
 
 informacion = ['es segura', 'brisa en', 'hay un pozo en',
-              'hedor en', 'hay Wumpus en']
+               'hedor en', 'hay Wumpus en']
 filas = ['0', '1', '2', '3']
 columnas = ['0', '1', '2', '3']
 
 
-class Descriptor :
+class Descriptor:
 
     '''
     Codifica un descriptor de N argumentos mediante un solo caracter
@@ -17,41 +17,42 @@ class Descriptor :
     Output: str de longitud 1
     '''
 
-    def __init__ (self,args_lista,chrInit=256) :
+    def __init__(self, args_lista, chrInit=256):
         self.args_lista = args_lista
         assert(len(args_lista) > 0), "Debe haber por lo menos un argumento"
         self.chrInit = chrInit
         self.rango = [chrInit, chrInit + np.prod(self.args_lista)]
 
-    def check_lista_valores(self,lista_valores) :
-        for i, v in enumerate(lista_valores) :
+    def check_lista_valores(self, lista_valores):
+        for i, v in enumerate(lista_valores):
             assert(v >= 0), "Valores deben ser no negativos"
-            assert(v < self.args_lista[i]), f"Valor debe ser menor a máximo {self.args_lista[i]}"
+            assert(
+                v < self.args_lista[i]), f"Valor debe ser menor a máximo {self.args_lista[i]}"
 
-    def codifica(self,lista_valores) :
+    def codifica(self, lista_valores):
         self.check_lista_valores(lista_valores)
         cod = lista_valores[0]
         n_columnas = 1
-        for i in range(0, len(lista_valores) - 1) :
+        for i in range(0, len(lista_valores) - 1):
             n_columnas = n_columnas * self.args_lista[i]
             cod = n_columnas * lista_valores[i+1] + cod
         return cod
 
-    def decodifica(self,n) :
+    def decodifica(self, n):
         decods = []
         if len(self.args_lista) > 1:
-            for i in range(0, len(self.args_lista) - 1) :
+            for i in range(0, len(self.args_lista) - 1):
                 n_columnas = np.prod(self.args_lista[:-(i+1)])
                 decods.insert(0, int(n / n_columnas))
                 n = n % n_columnas
         decods.insert(0, n % self.args_lista[0])
         return decods
 
-    def P(self,lista_valores) :
+    def P(self, lista_valores):
         codigo = self.codifica(lista_valores)
         return chr(self.chrInit+codigo)
 
-    def inv(self,codigo) :
+    def inv(self, codigo):
         n = ord(codigo)-self.chrInit
         return self.decodifica(n)
 
@@ -70,13 +71,14 @@ class Descriptor :
             actitud = ' siente'
             return f"El agente{neg}{actitud} {informacion[o]} la casilla ({x},{y})"
 
-class ClausulaDefinida :
+
+class ClausulaDefinida:
     '''
     Implementación de las cláusulas definidas
     Input: clausula, que es una cadena de la forma p1 Y ... Y pn > q
     '''
 
-    def __init__(self, clausula) :
+    def __init__(self, clausula):
         self.nombre = clausula
         indice_conectivo = clausula.find('>')
         if indice_conectivo > 0:
@@ -88,6 +90,7 @@ class ClausulaDefinida :
         self.cuerpo = cuerpo
         self.cabeza = cabeza
 
+
 class LPQuery:
 
     '''
@@ -97,14 +100,14 @@ class LPQuery:
             cods, un objeto de clase Descriptor
     '''
 
-    def __init__(self, base_conocimiento_lista) :
+    def __init__(self, base_conocimiento_lista):
         self.datos = []
         self.reglas = []
         self.atomos = []
         for formula in base_conocimiento_lista:
             self.TELL(formula)
 
-    def __str__(self) :
+    def __str__(self):
         cadena = 'Datos:\n'
         for dato in self.datos:
             cadena += dato + '\n'
@@ -125,30 +128,34 @@ class LPQuery:
             clausula = ClausulaDefinida(formula)
             self.reglas.append(clausula)
             for a in clausula.cuerpo:
-            	if '-' in a:
-            		atomo = a[1:]
-            	else:
-                	atomo = a
-            	if atomo not in self.atomos:
-            		self.atomos.append(a)
+                if '-' in a:
+                    atomo = a[1:]
+                else:
+                    atomo = a
+                if atomo not in self.atomos:
+                    self.atomos.append(a)
             if '-' in clausula.cabeza:
-            	atomo = clausula.cabeza[1:]
+                atomo = clausula.cabeza[1:]
             else:
-            	atomo = clausula.cabeza
+                atomo = clausula.cabeza
             if atomo not in self.atomos:
-            	self.atomos.append(atomo)
+                self.atomos.append(atomo)
         else:
             for literal in formula.split('Y'):
                 if literal not in self.datos:
                     self.datos.append(literal)
                     if '-' in literal:
-                    	atomo = literal[1:]
+                        atomo = literal[1:]
                     else:
-                    	atomo = literal
+                        atomo = literal
                     if literal not in self.atomos:
-                    	self.atomos.append(literal)
+                        self.atomos.append(literal)
 
-def pl_fc_entails(base, q) :
+    def unTELL(self, literal):
+        self.datos.remove(literal)
+
+
+def pl_fc_entails(base, q):
     count = {}
     for regla in base.reglas:
         count[regla.nombre] = len(regla.cuerpo)
@@ -167,8 +174,10 @@ def pl_fc_entails(base, q) :
                         queue.append(regla.cabeza)
     return False
 
+
 def and_or_graph_search(objetivo, base):
     return or_search(objetivo, base, [])
+
 
 def or_search(head, base, camino):
     if base.test_objetivo(head):
@@ -184,12 +193,14 @@ def or_search(head, base, camino):
             return 'success'
     return 'failure'
 
+
 def and_search(literales, base, camino):
     for literal in literales:
         plan = or_search(literal, base, camino)
         if plan == 'failure':
             return 'failure'
     return 'success'
+
 
 def ASK(objetivo, valor, base):
     ask = and_or_graph_search(objetivo, base)

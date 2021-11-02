@@ -162,6 +162,7 @@ class Player:
         self.knowledge = None
         # Descriptor allows us to codificate propositions with a single letter/string
         # Propositions follow the pattern there is empty/tree/tent/green on position x,y
+        # However 0 means being NOT empty.
         self.cods = Descriptor([puzzle.m, puzzle.n, 4])
 
         # Will codify row and column numbers of tents (adjacent to board).
@@ -179,20 +180,23 @@ class Player:
     def make_sight_sentence(self):
         '''Creates propositional sentence out of perceived sight.'''
         # agent can see the board.
-        sentences = ""
+        sentences = []
         for i in range(self.puzzle.m):
             for j in range(self.puzzle.n):
-                prop = self.cods.P([i, j, self.puzzle.state[i, j]])
-                # sentences.append(prop)
-                sentences += "Y" + prop
+                if self.puzzle.state[i, j] != 0:
+                    prop = self.cods.P([i, j, self.puzzle.state[i, j]])
+                    sentences.append(prop)
+                else:  # If empty, we simply know that there's no tree.
+                    prop = '-' + self.cods.P([i, j, 1])
+                    sentences.append(prop)
         # agent can see the adjacent board numbers.
         # add row numbers
         for i in range(self.puzzle.m):
-            sentences += "Y" + self.numberCods.P([0, i, self.puzzle.row[i]])
+            sentences.append(self.numberCods.P([0, i, self.puzzle.row[i]]))
         # add col numbers
         for i in range(self.puzzle.n):
-            sentences += "Y" + self.numberCods.P([1, i, self.puzzle.col[i]])
-        return sentences
+            sentences.append(self.numberCods.P([1, i, self.puzzle.col[i]]))
+        return 'Y'.join(sentences)
 
     def acknowledge_sight(self):
         ''' Adds the sight propositional sentences to the Agent's knowledge database'''
@@ -216,13 +220,9 @@ class Player:
             for j in range(self.puzzle.n):
                 # if there's a tree/tent/green on a square, then there must not be anything else on that square.
                 for val in range(1, 4):  # exclude empty squares from rule
-                    for otherval in [otherval for otherval in range(4) if otherval != val]:
+                    for otherval in [otherval for otherval in range(1, 4) if otherval != val]:
                         rules.append(self.cods.P(
                             [i, j, val]) + ">-" + self.cods.P([i, j, otherval]))
-                # if a square it's empty, then it can be replaced. So we cannot simply ignore all other possibilities, or else we fall in a contradiction
-                # However, if a square it's empty, we know that a tree CANNOT be there.
-                rules.append(self.cods.P([i, j, 0]) +
-                             '>-' + self.cods.P([i, j, 1]))
         return rules
 
     def make_emptyrowcol_rule(self):
@@ -240,6 +240,17 @@ class Player:
                              self.numberCods.P([1, j, 0]) + '>' + self.cods.P([i, j, 3]))
         return rules
 
+    def make_zero_nonempty_rule(self):
+        '''This is simply a helper rule, in which we symbolize zero as being tree or green. (non-empty)'''
+        rules = []
+        for i in range(self.puzzle.m):
+            for j in range(self.puzzle.n):
+                rules.append(self.cods.P([i, j, 1]) +
+                             '>' + self.cods.P([i, j, 0]))
+                rules.append(self.cods.P([i, j, 3]) +
+                             '>' + self.cods.P([i, j, 0]))
+        return rules
+
     def place_adjacent_tent_rule(self):
         '''If there is only an empty adjacent square to a tree, then there must be a tent in that square'''
         rules = []
@@ -251,12 +262,24 @@ class Player:
                     (i, j), includeDiagonals=False)
 
                 for x1, y1 in adjacents:
-                    othersquares_neg = 'Y'.join([
-                        '-' + self.cods.P([x2, y2, 1]) + 'Y-' + self.cods.P([x2, y2, 2]) for x2, y2 in adjacents if (x1, y1) != (x2, y2)])
-                    squarebody = self.cods.P([x1, y1, 0])
+                    othersquares_neg = 'Y'.join(
+                        [self.cods.P([x2, y2, 0]) for x2, y2 in adjacents if (x1, y1) != (x2, y2)])
+                    squarebody = '-' + self.cods.P([x1, y1, 1])
                     rules.append(body + 'Y' + squarebody +
                                  'Y' + othersquares_neg + '>' + self.cods.P([x1, y1, 2]))
 
+        return rules
+
+    def make_emptygreen_adjacent_to_tent_rule(self):
+        '''Any square that is NOT a tree and is adjacent to a tent, must be green'''
+        rules = []
+        for i in range(self.puzzle.m):
+            for j in range(self.puzzle.n):
+                adjacent_squares = self.puzzle.adjacentTiles(
+                    (i, j), includeDiagonals=True)
+                for i2, j2 in adjacent_squares:
+                    rules.append(
+                        self.cods.P([i, j, 2]) + 'Y-' + self.cods.P([i2, j2, 1]) + ">" + self.cods.P([i2, j2, 3]))
         return rules
 
     def humanReadAtom(self, atom):

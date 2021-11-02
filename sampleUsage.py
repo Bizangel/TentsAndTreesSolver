@@ -2,23 +2,26 @@
 from TentsAndTreesPuzzleInterface.PuzzleStorage import StorePuzzle, LoadStoredPuzzle
 from TentsAndTrees import TentsAndTrees, Player
 import numpy as np
+from TentsAndTreesPuzzleInterface.imagereader import FetchAndParsePuzzle
 from logica import LPQuery, ASK
 
-matrix, row, col = LoadStoredPuzzle("Puzzles/puzzle1.npz")
+# matrix, row, col = FetchAndParsePuzzle("Puzzles/puzzle4.png")
+# StorePuzzle("Puzzles/puzzle4.npz", matrix, row, col)
+
+matrix, row, col = LoadStoredPuzzle("Puzzles/puzzle3.npz")
 puzzle = TentsAndTrees(matrix, row, col)
 
+
 myplayer = Player(puzzle)
+
 myplayer.knowledge = LPQuery(
     myplayer.make_emptygreen_rule() +
     myplayer.make_unique_rule() +
     myplayer.make_emptyrowcol_rule() +
-    myplayer.place_adjacent_tent_rule()
+    myplayer.make_zero_nonempty_rule() +
+    myplayer.place_adjacent_tent_rule() +
+    myplayer.make_emptygreen_adjacent_to_tent_rule()
 )
-
-# myplayer.knowledge = LPQuery([])
-# myplayer.knowledge = LPQuery(myplayer.make_unique_formulas())
-
-# print(len(myplayer.place_adjacent_tent_rule()))
 
 
 def findFirstGreen():
@@ -27,9 +30,8 @@ def findFirstGreen():
         for j in range(puzzle.n):
             if puzzle.state[i, j] == 0:  # only ask on empty squares
                 # play and reset
+                print(f"Asking --- {i} {j} ")
                 if ASK(myplayer.cods.P([i, j, 3]), 'success', myplayer.knowledge):
-                    # That square will no longer be empty.
-                    myplayer.knowledge.unTELL(myplayer.cods.P([i, j, 0]))
                     puzzle.transition([i, j, 3])
                     found = True
                     break
@@ -46,7 +48,6 @@ def findFirstTent():
                 # play and reset
                 if ASK(myplayer.cods.P([i, j, 2]), 'success', myplayer.knowledge):
                     # That square will no longer be empty.
-                    myplayer.knowledge.unTELL(myplayer.cods.P([i, j, 0]))
                     puzzle.transition([i, j, 2])
                     found = True
                     break
@@ -85,42 +86,42 @@ def fullyAskTile(i, j):
 
 puzzle.displayState().show()
 
-myplayer.acknowledge_sight()
 
-print(myplayer.humanReadFormula(myplayer.place_adjacent_tent_rule()[0]))
-x = ASK('-' + myplayer.cods.P([0, 0, 0]), 'success', myplayer.knowledge)
-print(x)
+def displayknowledge():
 
-# myplayer.acknowledge_sight()
-
-# for i in range(8):
-#     for j in range(8):
-#         print(f"Asking: ({i},{j})")
-#         x = ASK(myplayer.cods.P([i, j, 3]),
-#                 'success', myplayer.knowledge)
-#         print(x)
+    print("The agent knows: ----------------")
+    for dat in myplayer.knowledge.datos:
+        # print(myplayer.knowledge.datos)
+        try:
+            print(myplayer.humanReadAtom(dat))
+        except KeyError:
+            continue
+    print('-------------------------')
 
 
-# findFirstGreen()
-# while True:
-#     myplayer.acknowledge_sight()
-#     # print("read")
-#     if findFirstGreen():
-#         print("Found Green")
-#         continue
+initial = np.array(myplayer.knowledge.datos)
+while True:
+    myplayer.acknowledge_sight()
+    displayknowledge()
+    # print("read")
 
-#     if findFirstTent():
-#         print("Found Tent")
-#         continue
+    # print(initial == np.array(myplayer.knowledge.datos))
+    if findFirstGreen():
+        # print("Found Green")
+        continue
 
-#     # print("read")
-#     if puzzle.checkDone():
-#         print("solved!")
-#         break
+    if findFirstTent():
+        # print("Found Tent")
+        continue
 
-#     # Couldn't find any more actions to perform!
-#     print("Stuck!")
-#     break
+    # print("read")
+    if puzzle.checkDone():
+        print("solved!")
+        break
+
+    # Couldn't find any more actions to perform!
+    print("Stuck!")
+    break
 
 # for i in range(8):
 #     for j in range(8):

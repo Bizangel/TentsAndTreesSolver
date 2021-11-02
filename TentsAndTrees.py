@@ -18,6 +18,8 @@ We are marking empty assure spaces (squares where our agent, via rules and propo
 as GREEN or GREEN EMPTY squares.
 These squares are not neccesary for the completion of the game and most variants of the game DO not include this feature.
 However having a way to differentiate empty squares between assured empty green squares, makes it easier to implement our propositional logic for our agent.
+
+PUZZLES ARE DETERMINISTIC. THERE ARE NO TWO SOLUTIONS TO A PUZZLE.
 '''
 
 
@@ -174,10 +176,6 @@ class Player:
             [2, max(self.puzzle.m, self.puzzle.n), max(max(puzzle.row), max(puzzle.col)) + 1], chrInit=(256+self.puzzle.m*self.puzzle.n*4+100))
         # make sure that chrInit is enough far away, so there is no collision with self.cods
 
-    def sense(self):
-        ''' Returns our agents sight. The position of trees, greens and tents'''
-        return self.puzzle.state  # Our agent can see the current state of the puzzle
-
     def make_sight_sentence(self):
         '''Creates propositional sentence out of perceived sight.'''
         # agent can see the board.
@@ -191,7 +189,7 @@ class Player:
         # add row numbers
         for i in range(self.puzzle.m):
             sentences += "Y" + self.numberCods.P([0, i, self.puzzle.row[i]])
-
+        # add col numbers
         for i in range(self.puzzle.n):
             sentences += "Y" + self.numberCods.P([1, i, self.puzzle.col[i]])
         return sentences
@@ -240,6 +238,25 @@ class Player:
                 # same but with column
                 rules.append('-' + self.cods.P([i, j, 1]) + 'Y' +
                              self.numberCods.P([1, j, 0]) + '>' + self.cods.P([i, j, 3]))
+        return rules
+
+    def place_adjacent_tent_rule(self):
+        '''If there is only an empty adjacent square to a tree, then there must be a tent in that square'''
+        rules = []
+        for i in range(self.puzzle.m):
+            for j in range(self.puzzle.n):
+
+                body = self.cods.P([i, j, 1])
+                adjacents = self.puzzle.adjacentTiles(
+                    (i, j), includeDiagonals=False)
+
+                for x1, y1 in adjacents:
+                    othersquares_neg = 'Y'.join([
+                        '-' + self.cods.P([x2, y2, 1]) + 'Y-' + self.cods.P([x2, y2, 2]) for x2, y2 in adjacents if (x1, y1) != (x2, y2)])
+                    squarebody = self.cods.P([x1, y1, 0])
+                    rules.append(body + 'Y' + squarebody +
+                                 'Y' + othersquares_neg + '>' + self.cods.P([x1, y1, 2]))
+
         return rules
 
     def humanReadAtom(self, atom):

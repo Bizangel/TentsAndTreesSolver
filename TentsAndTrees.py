@@ -48,13 +48,13 @@ class TentsAndTrees:
     def displayState(self):
         return DisplayPuzzle(self.state, self.row, self.col)
 
-    def transition(self, accion):
+    def transition(self, action):
         ''' Performs the given action
         Action is a 3-tuple
         (x,y,val)
         Places respective value in respective x,y position.
         '''
-        x, y, val = accion
+        x, y, val = action
         if (val == 1 or val == 0):
             raise ValueError("Can only place green squares or tents!. Trying to place {0}".format(
                 TentsAndTrees.DisplayCodes[val]))

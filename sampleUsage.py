@@ -9,7 +9,7 @@ from logica import LPQuery, ASK, pl_fc_ask
 # matrix, row, col = FetchAndParsePuzzle("Puzzles/puzzle5.png")
 # StorePuzzle("Puzzles/puzzle5.npz", matrix, row, col)
 
-matrix, row, col = LoadStoredPuzzle("Puzzles/puzzle3.npz")
+matrix, row, col = LoadStoredPuzzle("Puzzles/puzzle1.npz")
 puzzle = TentsAndTrees(matrix, row, col)
 
 
@@ -21,16 +21,12 @@ myplayer.knowledge = LPQuery(
     myplayer.make_emptyrowcol_rule() +
     myplayer.place_adjacent_tent_rule() +
     myplayer.make_emptygreen_adjacent_to_tent_rule() +
-    myplayer.fillRemainingEqual()
+    myplayer.fillRemainingEqual() +
+    myplayer.fillRemainingEqualEmpty()
 )
 
 namerules = [rule.nombre for rule in myplayer.knowledge.reglas]
 
-# duplicates = [item for item, count in collections.Counter(
-#     namerules).items() if count > 1]
-
-# for rule in duplicates:
-#     print(myplayer.humanReadFormula(rule))
 assert len(namerules) == len(set(namerules)), "There are duplicate rules!"
 
 
@@ -152,11 +148,6 @@ def displayknowledge():
     print('-------------------------')
 
 
-for form in myplayer.fillRemainingEqual():
-    print(myplayer.humanReadFormula(form))
-print(len(myplayer.fillRemainingEqual()))
-
-
 while True:
     myplayer.acknowledge_sight()
     # displayknowledge()
@@ -176,8 +167,5 @@ while True:
     print("Stuck!")
     break
 
-# for i in range(puzzle.m):
-#     for j in range(puzzle.n):
-#         fullyAskTile(i, j)
 
 puzzle.displayState().show()

@@ -303,7 +303,7 @@ class Player:
             return True
         rules = []
         # do row
-        for nNumber in range(max(self.puzzle.row)):
+        for nNumber in range(1, max(self.puzzle.row)+1):
             for rowval in range(self.puzzle.m):
                 rowsquares = [(rowval, x) for x in range(self.puzzle.n)]
                 for comb in combinations(rowsquares, nNumber):
@@ -317,24 +317,66 @@ class Player:
                         for x1, y1 in comb:
                             prop = (others_not_tent + 'Y' + selected_not_trees + 'Y' +
                                     self.numberCods.P([0, rowval, nNumber]) + '>' + self.cods.P([x1, y1, 2]))
-                            if prop in rules:
-                                raise ValueError(f"Repeated!")
                             rules.append(prop)
         # do col
         for nNumber in range(1, max(self.puzzle.col)+1):
             for colval in range(self.puzzle.n):
-                rowsquares = [(x, colval) for x in range(self.puzzle.m)]
-                for comb in combinations(rowsquares, nNumber):
+                colsquares = [(x, colval) for x in range(self.puzzle.m)]
+                for comb in combinations(colsquares, nNumber):
                     # check that selected squares are NOT adjacent.
                     if checkDistance([sq[0] for sq in comb]):
                         others_not_tent = "Y".join(['-' + self.cods.P([x2, y2, 2])
-                                                    for x2, y2 in rowsquares if (x2, y2) not in comb])
+                                                    for x2, y2 in colsquares if (x2, y2) not in comb])
                         selected_not_trees = "Y".join(
                             ['-' + self.cods.P([x1, y1, 1]) for x1, y1 in comb])
 
                         for x1, y1 in comb:
                             prop = (others_not_tent + 'Y' + selected_not_trees + 'Y' +
                                     self.numberCods.P([1, colval, nNumber]) + '>' + self.cods.P([x1, y1, 2]))
+                            rules.append(prop)
+        return rules
+
+    def fillRemainingEqualEmpty(self):
+        '''If there are n tents already placed in a n row / column, then fill the rest with grass'''
+
+        def checkDistance(numbers):
+            # Input: [3,1] -> True
+            # Input: [3,1,4,2] -> False
+            # Checks that any pair of the selected combination numbers ARE NOT adjacent.
+            for x1, y2 in combinations(numbers, 2):
+                if abs(x1 - y2) <= 1:
+                    return False
+            return True
+        rules = []
+        # do row
+        for nNumber in range(1, max(self.puzzle.row) + 1):
+            for rowval in range(self.puzzle.m):
+                rowsquares = [(rowval, x) for x in range(self.puzzle.n)]
+                for comb in combinations(rowsquares, nNumber):
+                    # check that selected squares are NOT adjacent.
+                    if checkDistance([sq[1] for sq in comb]):
+                        selected_tents = "Y".join(
+                            [self.cods.P([x1, y1, 2]) for x1, y1 in comb])
+
+                        for x2, y2 in [square for square in rowsquares if square not in comb]:
+                            prop = (selected_tents + 'Y' +
+                                    '-' + self.cods.P([x2, y2, 1]) + 'Y' +
+                                    self.numberCods.P([0, rowval, nNumber]) + '>' + self.cods.P([x2, y2, 3]))
+                            rules.append(prop)
+        # do col
+        for nNumber in range(1, max(self.puzzle.col) + 1):
+            for colval in range(self.puzzle.m):
+                colsquares = [(x, colval) for x in range(self.puzzle.m)]
+                for comb in combinations(colsquares, nNumber):
+                    # check that selected squares are NOT adjacent.
+                    if checkDistance([sq[0] for sq in comb]):
+                        selected_tents = "Y".join(
+                            [self.cods.P([x1, y1, 2]) for x1, y1 in comb])
+
+                        for x2, y2 in [square for square in colsquares if square not in comb]:
+                            prop = (selected_tents + 'Y' +
+                                    '-' + self.cods.P([x2, y2, 1]) + 'Y' +
+                                    self.numberCods.P([1, colval, nNumber]) + '>' + self.cods.P([x2, y2, 3]))
                             rules.append(prop)
         return rules
 

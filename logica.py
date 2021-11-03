@@ -151,9 +151,6 @@ class LPQuery:
                     if literal not in self.atomos:
                         self.atomos.append(literal)
 
-    def unTELL(self, literal):
-        self.datos.remove(literal)
-
 
 def pl_fc_entails(base, q):
     count = {}

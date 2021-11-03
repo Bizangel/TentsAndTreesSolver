@@ -1,5 +1,6 @@
 from TentsAndTreesPuzzleInterface.imagedisplayer import DisplayPuzzle
 from logica import Descriptor
+from itertools import combinations
 import numpy as np
 '''
 TO REMEMBER:
@@ -163,8 +164,8 @@ class Player:
         # Descriptor allows us to codificate propositions with a single letter/string
         # Propositions follow the pattern there is empty/tree/tent/green on position x,y
         # However 0 means being NOT empty.
-        self.cods = Descriptor([puzzle.m, puzzle.n, 4])
-
+        self.codsStart = 256
+        self.cods = Descriptor([puzzle.m, puzzle.n, 4], chrInit=self.codsStart)
         # Will codify row and column numbers of tents (adjacent to board).
         # First entry means either row or col.
         # 0-> row
@@ -173,9 +174,16 @@ class Player:
         # Third entry represents actual number in row.
         # Ex: numberCods.P([1,3,2]) means there must be 2 tents, on column of index 3.
         # Ex: numberCods.P([0,1,4]) means there must be 4 tents, on row of index 1.
+        self.numerCodStart = (256+self.puzzle.m*self.puzzle.n*4+100)
         self.numberCods = Descriptor(
-            [2, max(self.puzzle.m, self.puzzle.n), max(max(puzzle.row), max(puzzle.col)) + 1], chrInit=(256+self.puzzle.m*self.puzzle.n*4+100))
+            [2, max(self.puzzle.m, self.puzzle.n), max(max(puzzle.row), max(puzzle.col)) + 1], chrInit=self.numerCodStart)
+
         # make sure that chrInit is enough far away, so there is no collision with self.cods
+
+        # # This represents how many NON zeros there are per row.
+        # self.emptyrowSum = Descriptor(
+        #     []
+        # )
 
     def make_sight_sentence(self):
         '''Creates propositional sentence out of perceived sight.'''
@@ -240,16 +248,16 @@ class Player:
                              self.numberCods.P([1, j, 0]) + '>' + self.cods.P([i, j, 3]))
         return rules
 
-    def make_zero_nonempty_rule(self):
-        '''This is simply a helper rule, in which we symbolize zero as being tree or green. (non-empty)'''
-        rules = []
-        for i in range(self.puzzle.m):
-            for j in range(self.puzzle.n):
-                rules.append(self.cods.P([i, j, 1]) +
-                             '>' + self.cods.P([i, j, 0]))
-                rules.append(self.cods.P([i, j, 3]) +
-                             '>' + self.cods.P([i, j, 0]))
-        return rules
+    # def make_zero_nonempty_rule(self):
+    #     '''This is simply a helper rule, in which we symbolize zero as being tree or green. (non-empty)'''
+    #     rules = []
+    #     for i in range(self.puzzle.m):
+    #         for j in range(self.puzzle.n):
+    #             rules.append(self.cods.P([i, j, 1]) +
+    #                          '>' + self.cods.P([i, j, 0]))
+    #             rules.append(self.cods.P([i, j, 3]) +
+    #                          '>' + self.cods.P([i, j, 0]))
+    #     return rules
 
     def place_adjacent_tent_rule(self):
         '''If there is only an empty adjacent square to a tree, then there must be a tent in that square'''
@@ -263,7 +271,7 @@ class Player:
 
                 for x1, y1 in adjacents:
                     othersquares_neg = 'Y'.join(
-                        [self.cods.P([x2, y2, 0]) for x2, y2 in adjacents if (x1, y1) != (x2, y2)])
+                        ['-' + self.cods.P([x2, y2, 2]) for x2, y2 in adjacents if (x1, y1) != (x2, y2)])
                     squarebody = '-' + self.cods.P([x1, y1, 1])
                     rules.append(body + 'Y' + squarebody +
                                  'Y' + othersquares_neg + '>' + self.cods.P([x1, y1, 2]))
@@ -282,59 +290,85 @@ class Player:
                         self.cods.P([i, j, 2]) + 'Y-' + self.cods.P([i2, j2, 1]) + ">" + self.cods.P([i2, j2, 3]))
         return rules
 
+    def fillRemainingEqual(self):
+        '''If there are n amount of free spaces, and n number in row/col, then tents must go in free spaces'''
+
+        def checkDistance(numbers):
+            # Input: [3,1] -> True
+            # Input: [3,1,4,2] -> False
+            # Checks that any pair of the selected combination numbers ARE NOT adjacent.
+            for x1, y2 in combinations(numbers, 2):
+                if abs(x1 - y2) <= 1:
+                    return False
+            return True
+        rules = []
+        # do row
+        for nNumber in range(max(self.puzzle.row)):
+            for rowval in range(self.puzzle.m):
+                rowsquares = [(rowval, x) for x in range(self.puzzle.n)]
+                for comb in combinations(rowsquares, nNumber):
+                    # check that selected squares are NOT adjacent.
+                    if checkDistance([sq[1] for sq in comb]):
+                        others_not_tent = "Y".join(['-' + self.cods.P([x2, y2, 2])
+                                                    for x2, y2 in rowsquares if (x2, y2) not in comb])
+                        selected_not_trees = "Y".join(
+                            ['-' + self.cods.P([x1, y1, 1]) for x1, y1 in comb])
+
+                        for x1, y1 in comb:
+                            prop = (others_not_tent + 'Y' + selected_not_trees + 'Y' +
+                                    self.numberCods.P([0, rowval, nNumber]) + '>' + self.cods.P([x1, y1, 2]))
+                            if prop in rules:
+                                raise ValueError(f"Repeated!")
+                            rules.append(prop)
+        # do col
+        for nNumber in range(1, max(self.puzzle.col)+1):
+            for colval in range(self.puzzle.n):
+                rowsquares = [(x, colval) for x in range(self.puzzle.m)]
+                for comb in combinations(rowsquares, nNumber):
+                    # check that selected squares are NOT adjacent.
+                    if checkDistance([sq[0] for sq in comb]):
+                        others_not_tent = "Y".join(['-' + self.cods.P([x2, y2, 2])
+                                                    for x2, y2 in rowsquares if (x2, y2) not in comb])
+                        selected_not_trees = "Y".join(
+                            ['-' + self.cods.P([x1, y1, 1]) for x1, y1 in comb])
+
+                        for x1, y1 in comb:
+                            prop = (others_not_tent + 'Y' + selected_not_trees + 'Y' +
+                                    self.numberCods.P([1, colval, nNumber]) + '>' + self.cods.P([x1, y1, 2]))
+                            rules.append(prop)
+        return rules
+
     def humanReadAtom(self, atom):
         neg = False
         if atom[0] == '-':
             neg = True
             atom = atom[1]
 
-        x, y, code = self.cods.inv(atom)
-        code = TentsAndTrees.DisplayCodes[code]
-        if neg:
-            return f'NOT {code} on ({x},{y})'
+        if ord(atom) < self.numerCodStart:
+            x, y, code = self.cods.inv(atom)
+            if code == 0:
+                code = "(Tree OR Green)"
+            else:
+                code = TentsAndTrees.DisplayCodes[code]
+
+            if neg:
+                return f'NOT {code} on ({x},{y})'
+            else:
+                return f'{code} on ({x},{y})'
         else:
-            return f'{code} on ({x},{y})'
+            rowcol, index, number = self.numberCods.inv(atom)
+            if rowcol:
+                rowcol = "Column"
+            else:
+                rowcol = "Row"
+            if neg:
+                return f'NOT {number} on {rowcol} {index}'
+            else:
+                return f'{number} on {rowcol} {index}'
 
     def humanReadFormula(self, proposition):
         [prev, conclusion] = proposition.split('>')
 
-        prevs = prev.split('Y')
-
-        nots = [x[0] == '-' for x in prevs]
-
-        characters = []
-        for x in prevs:
-            if (x[0] == '-'):
-                characters.append(x[1])
-            else:
-                characters.append(x[0])
-
-        xs = [self.cods.inv(x)[0] for x in characters]
-        ys = [self.cods.inv(x)[1] for x in characters]
-        codes = [TentsAndTrees.DisplayCodes[self.cods.inv(
-            x)[2]] for x in characters]
-
-        conclusionNegated = False
-        if conclusion[0] == '-':
-            conclusionNegated = True
-            conclusion = conclusion[0]
-
-        xc, yc, code_c = self.cods.inv(conclusion)
-        code_c = TentsAndTrees.DisplayCodes[code_c]
-
-        buildstr = "IF: "
-        n = len(xs)
-        for i in range(n):
-            x, y, code = xs[i], ys[i], codes[i]
-            if (nots[i]):
-                buildstr += f"NOT {code} in ({x},{y})"
-            else:
-                buildstr += f"{code} in ({x},{y})"
-            if (i != n-1):
-                buildstr += " AND "
-
-        concstring = f"{xc},{yc},{code_c}"
-        if conclusionNegated:
-            concstring = "NOT" + concstring
-
-        return buildstr + " IMPLIES " + f"{code_c} ON ({xc},{yc})"
+        prevstr = " AND ".join([self.humanReadAtom(atom)
+                                for atom in prev.split('Y')])
+        return prevstr + " => " + self.humanReadAtom(conclusion)

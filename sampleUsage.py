@@ -1,12 +1,13 @@
 ''' Sample '''
+import collections
 from TentsAndTreesPuzzleInterface.PuzzleStorage import StorePuzzle, LoadStoredPuzzle
 from TentsAndTrees import TentsAndTrees, Player
 import numpy as np
 from TentsAndTreesPuzzleInterface.imagereader import FetchAndParsePuzzle
-from logica import LPQuery, ASK
+from logica import LPQuery, ASK, pl_fc_ask
 
-# matrix, row, col = FetchAndParsePuzzle("Puzzles/puzzle4.png")
-# StorePuzzle("Puzzles/puzzle4.npz", matrix, row, col)
+# matrix, row, col = FetchAndParsePuzzle("Puzzles/puzzle5.png")
+# StorePuzzle("Puzzles/puzzle5.npz", matrix, row, col)
 
 matrix, row, col = LoadStoredPuzzle("Puzzles/puzzle3.npz")
 puzzle = TentsAndTrees(matrix, row, col)
@@ -18,10 +19,36 @@ myplayer.knowledge = LPQuery(
     myplayer.make_emptygreen_rule() +
     myplayer.make_unique_rule() +
     myplayer.make_emptyrowcol_rule() +
-    myplayer.make_zero_nonempty_rule() +
     myplayer.place_adjacent_tent_rule() +
-    myplayer.make_emptygreen_adjacent_to_tent_rule()
+    myplayer.make_emptygreen_adjacent_to_tent_rule() +
+    myplayer.fillRemainingEqual()
 )
+
+namerules = [rule.nombre for rule in myplayer.knowledge.reglas]
+
+# duplicates = [item for item, count in collections.Counter(
+#     namerules).items() if count > 1]
+
+# for rule in duplicates:
+#     print(myplayer.humanReadFormula(rule))
+assert len(namerules) == len(set(namerules)), "There are duplicate rules!"
+
+
+''' Atom initialization for Forward Chaining '''
+atoms = []
+for i in range(2):
+    for j in range(max(puzzle.m, puzzle.n)):
+        for v in range(max(max(puzzle.row), max(puzzle.col)) + 1):
+            atoms.append(myplayer.numberCods.P([i, j, v]))
+            atoms.append('-' + myplayer.numberCods.P([i, j, v]))
+
+for i in range(puzzle.m):
+    for j in range(puzzle.n):
+        for v in range(4):
+            atoms.append(myplayer.cods.P([i, j, v]))
+            atoms.append('-' + myplayer.cods.P([i, j, v]))
+
+myplayer.knowledge.atomos = atoms
 
 
 def findFirstGreen():
@@ -30,8 +57,26 @@ def findFirstGreen():
         for j in range(puzzle.n):
             if puzzle.state[i, j] == 0:  # only ask on empty squares
                 # play and reset
-                print(f"Asking --- {i} {j} ")
+                print(f"Asking Green --- {i} {j} ")
                 if ASK(myplayer.cods.P([i, j, 3]), 'success', myplayer.knowledge):
+                    print(f"{i} {j} IS Green!")
+                    puzzle.transition([i, j, 3])
+                    found = True
+                    break
+        if found:
+            break
+    return found
+
+
+def findFirstGreenFC():
+    found = False
+    for i in range(puzzle.m):
+        for j in range(puzzle.n):
+            if puzzle.state[i, j] == 0:  # only ask on empty squares
+                # play and reset
+                print(f"Asking Green --- {i} {j} ")
+                if pl_fc_ask(myplayer.cods.P([i, j, 3]), myplayer.knowledge):
+                    print(f"{i} {j} IS Green!")
                     puzzle.transition([i, j, 3])
                     found = True
                     break
@@ -45,9 +90,25 @@ def findFirstTent():
     for i in range(puzzle.m):
         for j in range(puzzle.n):
             if puzzle.state[i, j] == 0:  # only ask on empty squares
-                # play and reset
+                print(f"Asking Tent --- {i} {j} ")
                 if ASK(myplayer.cods.P([i, j, 2]), 'success', myplayer.knowledge):
-                    # That square will no longer be empty.
+                    print(f"{i} {j} IS Tent!")
+                    puzzle.transition([i, j, 2])
+                    found = True
+                    break
+        if found:
+            break
+    return found
+
+
+def findFirstTentFC():
+    found = False
+    for i in range(puzzle.m):
+        for j in range(puzzle.n):
+            if puzzle.state[i, j] == 0:  # only ask on empty squares
+                print(f"Asking Tent --- {i} {j} ")
+                if pl_fc_ask(myplayer.cods.P([i, j, 2]), myplayer.knowledge):
+                    print(f"{i} {j} IS Tent!")
                     puzzle.transition([i, j, 2])
                     found = True
                     break
@@ -68,7 +129,7 @@ def easyAsk(charatom):
 
 def fullyAskTile(i, j):
     print(f"------- TILE ({i},{j}) ---------")
-    for value in range(4):
+    for value in range(1, 4):
         queryval = ASK(
             myplayer.cods.P([i, j, value]), 'success', myplayer.knowledge)
         msg = "True" if queryval else "Unknown"
@@ -76,7 +137,7 @@ def fullyAskTile(i, j):
             f"Is there {TentsAndTrees.DisplayCodes[value]} in ({i},{j})?: {msg} ")
 
     # negations
-    for value in range(4):
+    for value in range(1, 4):
         queryval = ASK(
             '-' + myplayer.cods.P([i, j, value]), 'success', myplayer.knowledge)
         msg = "True" if queryval else "Unknown"
@@ -84,37 +145,29 @@ def fullyAskTile(i, j):
             f"Is there NOT {TentsAndTrees.DisplayCodes[value]} in ({i},{j})?: {msg} ")
 
 
-puzzle.displayState().show()
-
-
 def displayknowledge():
-
     print("The agent knows: ----------------")
     for dat in myplayer.knowledge.datos:
-        # print(myplayer.knowledge.datos)
-        try:
-            print(myplayer.humanReadAtom(dat))
-        except KeyError:
-            continue
+        print(myplayer.humanReadAtom(dat))
     print('-------------------------')
 
 
-initial = np.array(myplayer.knowledge.datos)
+for form in myplayer.fillRemainingEqual():
+    print(myplayer.humanReadFormula(form))
+print(len(myplayer.fillRemainingEqual()))
+
+
 while True:
     myplayer.acknowledge_sight()
-    displayknowledge()
-    # print("read")
-
-    # print(initial == np.array(myplayer.knowledge.datos))
-    if findFirstGreen():
+    # displayknowledge()
+    if findFirstGreenFC():
         # print("Found Green")
         continue
 
-    if findFirstTent():
+    if findFirstTentFC():
         # print("Found Tent")
         continue
 
-    # print("read")
     if puzzle.checkDone():
         print("solved!")
         break
@@ -123,8 +176,8 @@ while True:
     print("Stuck!")
     break
 
-# for i in range(8):
-#     for j in range(8):
+# for i in range(puzzle.m):
+#     for j in range(puzzle.n):
 #         fullyAskTile(i, j)
 
 puzzle.displayState().show()

@@ -205,3 +205,7 @@ def and_search(literales, base, camino):
 def ASK(objetivo, valor, base):
     ask = and_or_graph_search(objetivo, base)
     return (ask == valor)
+
+
+def pl_fc_ask(objetivo, base):
+    return pl_fc_entails(base, objetivo)

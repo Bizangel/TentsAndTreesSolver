@@ -166,6 +166,7 @@ class Player:
         # However 0 means being NOT empty.
         self.codsStart = 256
         self.cods = Descriptor([puzzle.m, puzzle.n, 4], chrInit=self.codsStart)
+
         # Will codify row and column numbers of tents (adjacent to board).
         # First entry means either row or col.
         # 0-> row
@@ -180,10 +181,22 @@ class Player:
 
         # make sure that chrInit is enough far away, so there is no collision with self.cods
 
-        # # This represents how many NON zeros there are per row.
-        # self.emptyrowSum = Descriptor(
-        #     []
-        # )
+    def InitializeAtoms(self):
+        # Initialize atoms in knowledge database
+        atoms = []
+        for i in range(2):
+            for j in range(max(self.puzzle.m, self.puzzle.n)):
+                for v in range(max(max(self.puzzle.row), max(self.puzzle.col)) + 1):
+                    atoms.append(self.numberCods.P([i, j, v]))
+                    atoms.append('-' + self.numberCods.P([i, j, v]))
+
+        for i in range(self.puzzle.m):
+            for j in range(self.puzzle.n):
+                for v in range(4):
+                    atoms.append(self.cods.P([i, j, v]))
+                    atoms.append('-' + self.cods.P([i, j, v]))
+
+        self.knowledge.atomos = atoms
 
     def make_sight_sentence(self):
         '''Creates propositional sentence out of perceived sight.'''
@@ -194,7 +207,7 @@ class Player:
                 if self.puzzle.state[i, j] != 0:
                     prop = self.cods.P([i, j, self.puzzle.state[i, j]])
                     sentences.append(prop)
-                else:  # If empty, we simply know that there's no tree.
+                else:  # If empty, agent can see that there's no tree.
                     prop = '-' + self.cods.P([i, j, 1])
                     sentences.append(prop)
         # agent can see the adjacent board numbers.
@@ -248,19 +261,8 @@ class Player:
                              self.numberCods.P([1, j, 0]) + '>' + self.cods.P([i, j, 3]))
         return rules
 
-    # def make_zero_nonempty_rule(self):
-    #     '''This is simply a helper rule, in which we symbolize zero as being tree or green. (non-empty)'''
-    #     rules = []
-    #     for i in range(self.puzzle.m):
-    #         for j in range(self.puzzle.n):
-    #             rules.append(self.cods.P([i, j, 1]) +
-    #                          '>' + self.cods.P([i, j, 0]))
-    #             rules.append(self.cods.P([i, j, 3]) +
-    #                          '>' + self.cods.P([i, j, 0]))
-    #     return rules
-
-    def place_adjacent_tent_rule(self):
-        '''If there is only an empty adjacent square to a tree, then there must be a tent in that square'''
+    def make_only_adjacent_tent_rule(self):
+        '''If there is only an empty adjacent square to a tree (AND other squares are not tents), then there must be a tent in that square'''
         rules = []
         for i in range(self.puzzle.m):
             for j in range(self.puzzle.n):
@@ -273,6 +275,7 @@ class Player:
                     othersquares_neg = 'Y'.join(
                         ['-' + self.cods.P([x2, y2, 2]) for x2, y2 in adjacents if (x1, y1) != (x2, y2)])
                     squarebody = '-' + self.cods.P([x1, y1, 1])
+
                     rules.append(body + 'Y' + squarebody +
                                  'Y' + othersquares_neg + '>' + self.cods.P([x1, y1, 2]))
 
@@ -290,8 +293,8 @@ class Player:
                         self.cods.P([i, j, 2]) + 'Y-' + self.cods.P([i2, j2, 1]) + ">" + self.cods.P([i2, j2, 3]))
         return rules
 
-    def fillRemainingEqual(self):
-        '''If there are n amount of free spaces, and n number in row/col, then tents must go in free spaces'''
+    def make_fill_remaining_tents_equal_rule(self):
+        '''If there are n amount of free spaces, and n number in row/col, (and no other tents have been placed) then tents must go in free spaces'''
 
         def checkDistance(numbers):
             # Input: [3,1] -> True
@@ -336,7 +339,7 @@ class Player:
                             rules.append(prop)
         return rules
 
-    def fillRemainingEqualEmpty(self):
+    def make_fillgreen_filledtents_row_rule(self):
         '''If there are n tents already placed in a n row / column, then fill the rest with grass'''
 
         def checkDistance(numbers):
